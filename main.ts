@@ -256,7 +256,117 @@ namespace esp8266 {
         // Connect to WiFi router.
         sendCommand("AT+CWJAP=\"" + ssid + "\",\"" + password + "\"", "OK", 20000)
     }
+// ===== UDP通信機能 =====
 
+let udpStarted = false
+let udpReceiveBuffer = ""
+
+/**
+ * UDP通信を開始する
+ * host: 送信先IPアドレス
+ * remotePort: 送信先ポート
+ * localPort: ESP8266側の待受ポート
+ */
+//% blockHidden=true
+export function startUdp(
+    host: string,
+    remotePort: number,
+    localPort: number
+): boolean {
+    udpStarted = false
+    udpReceiveBuffer = ""
+
+    if (!sendCommand("AT+CIPMUX=0", "OK", 2000)) {
+        return false
+    }
+
+    if (!sendCommand("AT+CIPDINFO=1", "OK", 2000)) {
+        return false
+    }
+
+    let command =
+        "AT+CIPSTART=\"UDP\",\"" +
+        host + "\"," +
+        remotePort + "," +
+        localPort + ",0"
+
+    if (!sendCommand(command, "OK", 5000)) {
+        return false
+    }
+
+    udpStarted = true
+    return true
+}
+
+/**
+ * UDPで文字列を送信する
+ */
+//% blockHidden=true
+export function sendUdpText(message: string): boolean {
+    if (!udpStarted) {
+        return false
+    }
+
+    if (!sendCommand("AT+CIPSEND=" + message.length, ">", 3000)) {
+        return false
+    }
+
+    serial.writeString(message)
+
+    let response = getResponse("SEND OK", 3000)
+    return response != ""
+}
+
+/**
+ * UDPで受信した文字列を1件取得する
+ * 受信していない場合は空文字を返す
+ */
+//% blockHidden=true
+export function receiveUdpText(): string {
+    if (!udpStarted) {
+        return ""
+    }
+
+    udpReceiveBuffer += serial.readString()
+
+    let start = udpReceiveBuffer.indexOf("+IPD,")
+
+    if (start < 0) {
+        // バッファが大きくなりすぎないようにする
+        if (udpReceiveBuffer.length > 512) {
+            udpReceiveBuffer = ""
+        }
+        return ""
+    }
+
+    let dataStart = udpReceiveBuffer.indexOf(":", start)
+
+    if (dataStart < 0) {
+        return ""
+    }
+
+    let header = udpReceiveBuffer.substring(start + 5, dataStart)
+    let fields = header.split(",")
+
+    let dataLength = parseInt(fields[0])
+
+    if (isNaN(dataLength) || dataLength < 0) {
+        udpReceiveBuffer = udpReceiveBuffer.substring(dataStart + 1)
+        return ""
+    }
+
+    let payloadStart = dataStart + 1
+    let payloadEnd = payloadStart + dataLength
+
+    if (udpReceiveBuffer.length < payloadEnd) {
+        return ""
+    }
+
+    let payload = udpReceiveBuffer.substring(payloadStart, payloadEnd)
+    udpReceiveBuffer = udpReceiveBuffer.substring(payloadEnd)
+
+    return payload
+}
 
 
     
