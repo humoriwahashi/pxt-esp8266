@@ -104,6 +104,16 @@ namespace esp8266 {
 
             // Read until the end of the line.
             rxData += serial.readString()
+
+            // 「>」のような改行なしの応答にも対応する
+　　　　　　if (expected_response != null &&
+    　　　　expected_response == ">" &&
+    　　　　rxData.includes(">")) {
+    　　　　result = true
+    　　　　break
+　　　　　　}
+
+            
             if (rxData.includes("\r\n")) {
                 // Check if expected response received.
                 if (rxData.slice(0, rxData.indexOf("\r\n")).includes(response)) {
@@ -255,6 +265,114 @@ namespace esp8266 {
 
         // Connect to WiFi router.
         sendCommand("AT+CWJAP=\"" + ssid + "\",\"" + password + "\"", "OK", 20000)
+    }
+
+    // ===== UDP通信機能 =====
+
+    let udpStarted = false
+    let udpReceiveBuffer = ""
+
+    // UDP通信を開始する
+    // host: 送信先IP
+    // remotePort: 送信先ポート
+    // localPort: ESP8266側のポート
+    //% blockHidden=true
+    export function startUdp(
+        host: string,
+        remotePort: number,
+        localPort: number
+    ): boolean {
+        udpStarted = false
+        udpReceiveBuffer = ""
+
+        if (!sendCommand("AT+CIPMUX=0", "OK", 2000)) {
+            return false
+        }
+
+        if (!sendCommand("AT+CIPDINFO=1", "OK", 2000)) {
+            return false
+        }
+
+        let command = "AT+CIPSTART=\"UDP\",\"" +
+            host + "\"," + remotePort + "," +
+            localPort + ",0"
+
+        if (!sendCommand(command, "OK", 5000)) {
+            return false
+        }
+
+        udpStarted = true
+        return true
+    }
+
+    // UDPで文字列を送信する
+    //% blockHidden=true
+    export function sendUdpText(message: string): boolean {
+        if (!udpStarted) {
+            return false
+        }
+
+        // AT+CIPSENDの待ち受け記号「>」を確認
+        if (!sendCommand(
+            "AT+CIPSEND=" + message.length,
+            ">",
+            3000
+        )) {
+            return false
+        }
+
+        // データ本体を送信
+        serial.writeString(message)
+
+        // 送信完了応答を確認
+        let response = getResponse("SEND OK", 3000)
+        return response != ""
+    }
+
+    // UDP受信データを1件取得する
+    //% blockHidden=true
+    export function receiveUdpText(): string {
+        if (!udpStarted) {
+            return ""
+        }
+
+        udpReceiveBuffer += serial.readString()
+
+        let start = udpReceiveBuffer.indexOf("+IPD,")
+
+        if (start < 0) {
+            if (udpReceiveBuffer.length > 512) {
+                udpReceiveBuffer = ""
+            }
+            return ""
+        }
+
+        let dataStart = udpReceiveBuffer.indexOf(":", start)
+
+        if (dataStart < 0) {
+            return ""
+        }
+
+        let header = udpReceiveBuffer.slice(start + 5, dataStart)
+        let fields = header.split(",")
+        let dataLength = parseInt(fields[0])
+
+        if (isNaN(dataLength) || dataLength < 0) {
+            udpReceiveBuffer = udpReceiveBuffer.slice(dataStart + 1)
+            return ""
+        }
+
+        let payloadStart = dataStart + 1
+        let payloadEnd = payloadStart + dataLength
+
+        if (udpReceiveBuffer.length < payloadEnd) {
+            return ""
+        }
+
+        let payload = udpReceiveBuffer.slice(payloadStart, payloadEnd)
+        udpReceiveBuffer = udpReceiveBuffer.slice(payloadEnd)
+
+        return payload
     }
 
 
