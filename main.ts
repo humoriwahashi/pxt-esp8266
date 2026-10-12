@@ -322,6 +322,7 @@ export function sendUdpText(message: string): boolean {
  * 受信していない場合は空文字を返す
  */
 //% blockHidden=true
+// UDPで受信した文字列を1件取得する
 export function receiveUdpText(): string {
     if (!udpStarted) {
         return ""
@@ -332,7 +333,6 @@ export function receiveUdpText(): string {
     let start = udpReceiveBuffer.indexOf("+IPD,")
 
     if (start < 0) {
-        // バッファが大きくなりすぎないようにする
         if (udpReceiveBuffer.length > 512) {
             udpReceiveBuffer = ""
         }
@@ -345,13 +345,13 @@ export function receiveUdpText(): string {
         return ""
     }
 
-    let header = udpReceiveBuffer.substring(start + 5, dataStart)
+    let header = udpReceiveBuffer.slice(start + 5, dataStart)
     let fields = header.split(",")
 
     let dataLength = parseInt(fields[0])
 
     if (isNaN(dataLength) || dataLength < 0) {
-        udpReceiveBuffer = udpReceiveBuffer.substring(dataStart + 1)
+        udpReceiveBuffer = udpReceiveBuffer.slice(dataStart + 1)
         return ""
     }
 
@@ -362,8 +362,8 @@ export function receiveUdpText(): string {
         return ""
     }
 
-    let payload = udpReceiveBuffer.substring(payloadStart, payloadEnd)
-    udpReceiveBuffer = udpReceiveBuffer.substring(payloadEnd)
+    let payload = udpReceiveBuffer.slice(payloadStart, payloadEnd)
+    udpReceiveBuffer = udpReceiveBuffer.slice(payloadEnd)
 
     return payload
 }
