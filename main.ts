@@ -104,7 +104,11 @@ namespace esp8266 {
 
             // Read until the end of the line.
             rxData += serial.readString()
-
+            
+　　　　　　　if (expected_response == ">" && rxData.includes(">")) {
+  　　　　　　　　  result = true
+    　　　　　　　　　break
+　　　　　　　}
             
             if (rxData.includes("\r\n")) {
                 // Check if expected response received.
