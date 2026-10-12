@@ -309,7 +309,7 @@ export function sendUdpText(message: string): boolean {
         return false
     }
 
-    if (!sendCommand("AT+CIPSEND=" + message.length, ">", 3000)) {
+   if (!sendCommand("AT+CIPSEND=" + message.length, ">", 3000)) return false {
         serial.writeLine("CIPSEND FAILED")
         return false
     }
@@ -317,6 +317,7 @@ export function sendUdpText(message: string): boolean {
     serial.writeString(message)
 
     let response = getResponse("SEND OK", 3000)
+　　return response != ""
 
     if (response == "") {
         serial.writeLine("SEND OK TIMEOUT")
