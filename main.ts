@@ -302,20 +302,31 @@ export function startUdp(
  * UDPで文字列を送信する
  */
 //% blockHidden=true
+
 export function sendUdpText(message: string): boolean {
     if (!udpStarted) {
+        serial.writeLine("UDP NOT STARTED")
         return false
     }
 
     if (!sendCommand("AT+CIPSEND=" + message.length, ">", 3000)) {
+        serial.writeLine("CIPSEND FAILED")
         return false
     }
 
     serial.writeString(message)
 
     let response = getResponse("SEND OK", 3000)
-    return response != ""
+
+    if (response == "") {
+        serial.writeLine("SEND OK TIMEOUT")
+        return false
+    }
+
+    serial.writeLine("UDP SENT")
+    return true
 }
+
 
 /**
  * UDPで受信した文字列を1件取得する
