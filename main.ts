@@ -90,6 +90,7 @@ namespace esp8266 {
     //% blockHidden=true
     //% blockId=esp8266_get_response
     export function getResponse(response: string, timeout: number = 100): string {
+        rxData += serial.readString()
         let responseLine = ""
         let timestamp = input.runningTime()
         while (true) {
@@ -335,6 +336,32 @@ export function sendUdpText(message: string): boolean {
     return true
 }
 
+　　// 指定したIPアドレス・ポートにUDP送信
+//% blockHidden=true
+export function sendUdpTextTo(
+    host: string,
+    port: number,
+    message: string
+): boolean {
+    if (!udpStarted) {
+        return false
+    }
+
+    // 指定した宛先にUDP送信する
+    if (!sendCommand(
+        "AT+CIPSEND=" + message.length +
+        ",\"" + host + "\"," + port,
+        ">",
+        3000
+    )) {
+        return false
+    }
+
+    serial.writeString(message)
+
+    return getResponse("SEND OK", 3000) != ""
+}
+    
 
     // UDP受信データを1件取得する
     //% blockHidden=true
@@ -382,19 +409,55 @@ export function sendUdpText(message: string): boolean {
         return payload
     }
 
-        /**
-     * 名前と数値をUDPで送信する
-     * radio.sendValue(name, value) に相当
-     */
-    //% blockId=esp8266_send_value
-    //% block="Wi-Fiで値を送信 name %name value %value"
-    //% weight=20
-    export function sendValue(
-        name: string,
-        value: number
-    ): boolean {
-        return sendUdpText(name + ":" + value)
+    // 子機のIPアドレスを保存
+let nodeIPs: string[] = ["", "", ""];
+
+/**
+ * 子機のIPアドレスを設定する
+ */
+//% blockId=esp8266_set_node_ip
+//% block="set node ID %id IP address %ip"
+//% id.min=0 id.max=2
+//% weight=30
+export function setNodeIP(id: number, ip: string): void {
+    if (id < 0 || id >= nodeIPs.length) {
+        return;
     }
+
+    nodeIPs[id] = ip;
+}
+
+    
+    
+      // 宛先を指定して値を送信
+export function sendValue(
+    name: string,
+    value: number,
+    targetID: number = -1
+): boolean {
+    if (!udpStarted) {
+        return false;
+    }
+
+    let message = name + ":" + value;
+
+    // 従来どおり、親機への送信
+    if (targetID < 0) {
+        return sendUdpText(message);
+    }
+
+    // IDの範囲とIPアドレスを確認
+    if (targetID >= nodeIPs.length ||
+        nodeIPs[targetID] == "") {
+        return false;
+    }
+
+    return sendUdpTextTo(
+        nodeIPs[targetID],
+        8081,
+        message
+    );
+}
 
     /**
      * UDPで値を受信したときの処理を登録する
