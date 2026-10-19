@@ -300,27 +300,41 @@ namespace esp8266 {
 
     // UDPで文字列を送信する
     //% blockHidden=true
-    export function sendUdpText(message: string): boolean {
-        if (!udpStarted) {
-            return false
-        }
-
-        // AT+CIPSENDの待ち受け記号「>」を確認
-        if (!sendCommand(
-            "AT+CIPSEND=" + message.length,
-            ">",
-            3000
-        )) {
-            return false
-        }
-
-        // データ本体を送信
-        serial.writeString(message)
-
-        // 送信完了応答を確認
-        let response = getResponse("SEND OK", 3000)
-        return response != ""
+ 
+export function sendUdpText(message: string): boolean {
+    if (!udpStarted) {
+        serial.writeLine("ERR: UDP not started")
+        return false
     }
+
+    serial.writeLine("STEP 1: CIPSEND")
+
+    if (!sendCommand(
+        "AT+CIPSEND=" + message.length,
+        ">",
+        3000
+    )) {
+        serial.writeLine("ERR: NO PROMPT")
+        return false
+    }
+
+    serial.writeLine("STEP 2: PROMPT OK")
+
+    serial.writeString(message)
+
+    serial.writeLine("STEP 3: WAIT SEND OK")
+
+    let response = getResponse("SEND OK", 3000)
+
+    if (response == "") {
+        serial.writeLine("ERR: NO SEND OK")
+        return false
+    }
+
+    serial.writeLine("STEP 4: SEND OK")
+    return true
+}
+
 
     // UDP受信データを1件取得する
     //% blockHidden=true
