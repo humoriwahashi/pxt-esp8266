@@ -264,6 +264,13 @@ namespace esp8266 {
     let udpStarted = false
     let udpReceiveBuffer = ""
 
+    // 受信した値を処理する関数
+　　let valueReceiveHandler:
+    　　(name: string, value: number) => void = null
+
+　　// 受信ループの重複起動を防ぐ
+　　let valueReceiveLoopStarted = false
+
     // UDP通信を開始する
     // host: 送信先IP
     // remotePort: 送信先ポート
@@ -306,8 +313,6 @@ export function sendUdpText(message: string): boolean {
         return false
     }
 
-    serial.writeLine("STEP 1: CIPSEND")
-
     if (!sendCommand(
         "AT+CIPSEND=" + message.length,
         ">",
@@ -317,11 +322,8 @@ export function sendUdpText(message: string): boolean {
         return false
     }
 
-    serial.writeLine("STEP 2: PROMPT OK")
 
     serial.writeString(message)
-
-    serial.writeLine("STEP 3: WAIT SEND OK")
 
     let response = getResponse("SEND OK", 3000)
 
@@ -330,7 +332,6 @@ export function sendUdpText(message: string): boolean {
         return false
     }
 
-    serial.writeLine("STEP 4: SEND OK")
     return true
 }
 
@@ -379,6 +380,65 @@ export function sendUdpText(message: string): boolean {
         udpReceiveBuffer = udpReceiveBuffer.slice(payloadEnd)
 
         return payload
+    }
+
+        /**
+     * 名前と数値をUDPで送信する
+     * radio.sendValue(name, value) に相当
+     */
+    //% blockId=esp8266_send_value
+    //% block="Wi-Fiで値を送信 name %name value %value"
+    //% weight=20
+    export function sendValue(
+        name: string,
+        value: number
+    ): boolean {
+        return sendUdpText(name + ":" + value)
+    }
+
+    /**
+     * UDPで値を受信したときの処理を登録する
+     */
+    //% blockId=esp8266_on_received_value
+    //% block="Wi-Fiで値を受信したとき"
+    //% weight=19
+    export function onReceivedValue(
+        handler: (name: string, value: number) => void
+    ): void {
+        valueReceiveHandler = handler
+
+        if (valueReceiveLoopStarted) {
+            return
+        }
+
+        valueReceiveLoopStarted = true
+
+        control.inBackground(function () {
+            while (true) {
+                if (udpStarted && valueReceiveHandler) {
+                    let message = receiveUdpText()
+
+                    if (message != "") {
+                        let separator = message.indexOf(":")
+
+                        if (separator > 0) {
+                            let name =
+                                message.substr(0, separator)
+
+                            let value = parseFloat(
+                                message.substr(separator + 1)
+                            )
+
+                            if (!isNaN(value)) {
+                                valueReceiveHandler(name, value)
+                            }
+                        }
+                    }
+                }
+
+                basic.pause(20)
+            }
+        })
     }
 
 
