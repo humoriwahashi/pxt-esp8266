@@ -309,7 +309,7 @@ export function sendUdpText(message: string): boolean {
     serial.writeLine("STEP 1: CIPSEND")
 
     if (!sendCommand(
-        "AT+CIPSEND=" + message.length,
+        message.length,
         ">",
         3000
     )) {
