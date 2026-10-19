@@ -458,7 +458,33 @@ export function sendValue(
         message
     );
 }
+　　
+    // IDで指定した子機へ値を送信
+    //% blockId=esp8266_send_value_to_id
+    //% block="send value %name value %value to node ID %targetID"
+    //% targetID.min=0 targetID.max=2
+    //% weight=20
+    export function sendValueToID(
+        targetID: number,
+        name: string,
+        value: number
+    ): boolean {
+        if (!udpStarted ||
+            targetID < 0 ||
+            targetID >= nodeIPs.length ||
+            nodeIPs[targetID] == "") {
+            return false
+        }
 
+        return sendUdpTextTo(
+            nodeIPs[targetID],
+            8081,
+            name + ":" + value
+        )
+    }
+　
+
+    
     /**
      * UDPで値を受信したときの処理を登録する
      */
