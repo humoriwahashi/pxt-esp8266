@@ -104,15 +104,7 @@ namespace esp8266 {
 
             // Read until the end of the line.
            // Read response from ESP8266.
-rxData += serial.readString()
 
-// The ESP8266 prompt ">" may arrive without CRLF.
-if (expected_response == ">" && rxData.includes(">")) {
-    return true
-}
-
-if (rxData.includes("\r\n")) {
-　　　　　　
             
             if (rxData.includes("\r\n")) {
                 // Check if expected response received.
