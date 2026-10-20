@@ -386,6 +386,3 @@ namespace esp8266 {
 
     serial.writeString(data)
 }
-
-    
-}
