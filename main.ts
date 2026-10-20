@@ -257,7 +257,18 @@ namespace esp8266 {
         sendCommand("AT+CWJAP=\"" + ssid + "\",\"" + password + "\"", "OK", 20000)
     }
 
+//ここから追加
+    function sendNumber(value: number) {
+    let data = value.toString() + "\n"
+    let length = data.length
 
+    serial.writeString(
+        "AT+CIPSEND=" + length + "\r\n"
+    )
+    basic.pause(500)
+
+    serial.writeString(data)
+}
 
     
 }
